@@ -1,111 +1,81 @@
 package pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.service;
 
-import org.springframework.stereotype.Service;
+import java.sql.SQLException;
+
 import org.springframework.beans.factory.annotation.Autowired;
-import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.aggregate.*;
-import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.repository.*;
-import java.util.List;
-import java.util.Set;
-import java.util.Optional;
+import org.springframework.dao.CannotAcquireLockException;
+import org.springframework.retry.annotation.Backoff;
+import org.springframework.retry.annotation.Retryable;
+import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Isolation;
 import org.springframework.transaction.annotation.Transactional;
 
+import pt.ulisboa.tecnico.socialsoftware.ms.coordination.unitOfWork.UnitOfWork;
+import pt.ulisboa.tecnico.socialsoftware.ms.coordination.unitOfWork.UnitOfWorkService;
+import pt.ulisboa.tecnico.socialsoftware.ms.domain.aggregate.AggregateIdGeneratorService;
+import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.aggregate.User;
+import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.aggregate.UserFactory;
+import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.aggregate.UserRepository;
+import pt.ulisboa.tecnico.socialsoftware.teastore.shared.dtos.UserDto;
+
 @Service
-@Transactional
 public class UserService {
+
     @Autowired
-    private UserRepository userRepository;
+    private AggregateIdGeneratorService aggregateIdGeneratorService;
+
+    private final UserRepository userRepository;
+
+    private final UnitOfWorkService<UnitOfWork> unitOfWorkService;
+
+    @Autowired
+    private UserFactory userFactory;
+
+    public UserService(UnitOfWorkService unitOfWorkService, UserRepository userRepository) {
+        this.unitOfWorkService = unitOfWorkService;
+        this.userRepository = userRepository;
+    }
 
     @Retryable(
-            value = { SQLException.class, CannotAcquireLockException.class },
+            value = { SQLException.class,  CannotAcquireLockException.class },
             maxAttemptsExpression = "${retry.db.maxAttempts}",
         backoff = @Backoff(
             delayExpression = "${retry.db.delay}",
             multiplierExpression = "${retry.db.multiplier}"
         ))
     @Transactional(isolation = Isolation.SERIALIZABLE)
-    @Transactional
-    public User createUser(UserDto userDto) {
-        if (!(userDto != null)) {
-            throw new AnswersException(AnswersErrorMessage.IllegalArgumentException, "UserDto cannot be null");
-        }
-        User user = executionFactory.createUserFromExisting(userDto);
-        return user;
+    public UserDto getUserById(Integer aggregateId, UnitOfWork unitOfWork) {
+        return userFactory.createUserDto((User) unitOfWorkService.aggregateLoadAndRegisterRead(aggregateId, unitOfWork));
     }
 
+    /* simple user creation */
     @Retryable(
-            value = { SQLException.class, CannotAcquireLockException.class },
+            value = { SQLException.class,  CannotAcquireLockException.class },
             maxAttemptsExpression = "${retry.db.maxAttempts}",
         backoff = @Backoff(
             delayExpression = "${retry.db.delay}",
             multiplierExpression = "${retry.db.multiplier}"
         ))
     @Transactional(isolation = Isolation.SERIALIZABLE)
-    @Transactional(readOnly = true)
-    public Optional<User> findUserById(Integer id) {
-        if (!(id != null && id > 0)) {
-            throw new AnswersException(AnswersErrorMessage.IllegalArgumentException, "ID must be positive");
-        }
+    public UserDto createUser(UserDto userDto, UnitOfWork unitOfWork) {
+        Integer aggregateId = aggregateIdGeneratorService.getNewAggregateId();
+        User user = userFactory.createUser(aggregateId, userDto);
+        unitOfWorkService.registerChanged(user, unitOfWork);
+        return userFactory.createUserDto(user);
     }
 
     @Retryable(
-            value = { SQLException.class, CannotAcquireLockException.class },
+            value = { SQLException.class,  CannotAcquireLockException.class },
             maxAttemptsExpression = "${retry.db.maxAttempts}",
-        backoff = @Backoff(
-            delayExpression = "${retry.db.delay}",
-            multiplierExpression = "${retry.db.multiplier}"
-        ))
+            backoff = @Backoff(
+                    delayExpression = "${retry.db.delay}",
+                    multiplierExpression = "${retry.db.multiplier}"
+            ))
     @Transactional(isolation = Isolation.SERIALIZABLE)
-    @Transactional
-    public User updateUser(Integer id, UserDto userDto) {
-        if (!(id != null && id > 0 && userDto != null)) {
-            throw new AnswersException(AnswersErrorMessage.IllegalArgumentException, "Invalid parameters for update");
-        }
-          = () unitOfWorkService.aggregateLoadAndRegisterRead(id, );
-        return existingUser;
+    public void deleteUser(Integer userAggregateId, UnitOfWork unitOfWork) {
+        User oldUser = (User) unitOfWorkService.aggregateLoadAndRegisterRead(userAggregateId, unitOfWork);
+        User newUser = userFactory.createUserFromExisting(oldUser);
+        newUser.remove();
+        unitOfWorkService.registerChanged(newUser, unitOfWork);
     }
-
-    @Retryable(
-            value = { SQLException.class, CannotAcquireLockException.class },
-            maxAttemptsExpression = "${retry.db.maxAttempts}",
-        backoff = @Backoff(
-            delayExpression = "${retry.db.delay}",
-            multiplierExpression = "${retry.db.multiplier}"
-        ))
-    @Transactional(isolation = Isolation.SERIALIZABLE)
-    @Transactional
-    public void deleteUser(Integer id) {
-        if (!(id != null && id > 0)) {
-            throw new AnswersException(AnswersErrorMessage.IllegalArgumentException, "ID must be positive");
-        }
-          = () unitOfWorkService.aggregateLoadAndRegisterRead(id, );
-    }
-
-    @Retryable(
-            value = { SQLException.class, CannotAcquireLockException.class },
-            maxAttemptsExpression = "${retry.db.maxAttempts}",
-        backoff = @Backoff(
-            delayExpression = "${retry.db.delay}",
-            multiplierExpression = "${retry.db.multiplier}"
-        ))
-    @Transactional(isolation = Isolation.SERIALIZABLE)
-    @Transactional(readOnly = true)
-    public List<User> findAllUsers() {
-    }
-
-    public User createUser(User user, Object unitOfWork) {
-        // TODO: Implement createUser method
-        return null; // Placeholder
-    }
-
-    public User findByUserId(Integer userAggregateId, Object unitOfWork) {
-        // TODO: Implement findByUserId method
-        return null; // Placeholder
-    }
-
-    public Object deleteUser(Integer userAggregateId, Object unitOfWork) {
-        // TODO: Implement deleteUser method
-        return null; // Placeholder
-    }
-
-    // Additional CRUD utility methods can be added here
 }

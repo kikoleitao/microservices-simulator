@@ -4,6 +4,8 @@ import jakarta.persistence.Entity;
 
 import pt.ulisboa.tecnico.socialsoftware.ms.domain.aggregate.Aggregate;
 
+import pt.ulisboa.tecnico.socialsoftware.ms.exception.SimulatorException;
+import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.exception.TeastoreErrorMessage;
 import pt.ulisboa.tecnico.socialsoftware.teastore.shared.dtos.CartDto;
 
 @Entity
@@ -66,7 +68,7 @@ public abstract class Cart extends Aggregate {
     @Override
     public void verifyInvariants() {
         if (!(invariantTotalNonNegative())) {
-            throw new SimulatorException(INVARIANT_BREAK, getAggregateId());
+            throw new SimulatorException(TeastoreErrorMessage.INVARIANT_BREAK, getAggregateId());
         }
     }
 

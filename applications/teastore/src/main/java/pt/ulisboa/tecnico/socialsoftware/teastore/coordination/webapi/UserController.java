@@ -1,13 +1,10 @@
 package pt.ulisboa.tecnico.socialsoftware.teastore.coordination.webapi;
 
 import org.springframework.web.bind.annotation.*;
-import org.springframework.http.ResponseEntity;
 import org.springframework.beans.factory.annotation.Autowired;
 import pt.ulisboa.tecnico.socialsoftware.teastore.coordination.functionalities.UserFunctionalities;
-import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.aggregate.UserDto;
 import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.exception.*;
-
-import java.util.List;
+import pt.ulisboa.tecnico.socialsoftware.teastore.shared.dtos.UserDto;
 
 @RestController
 public class UserController {
@@ -16,14 +13,12 @@ public class UserController {
 
     @PostMapping("/users/create")
     public UserDto createUser(@RequestBody UserDto userDto) throws Exception {
-        UserDto result = userFunctionalities.createUser(userDto);
-        return result;
+        return userFunctionalities.createUser(userDto);
     }
 
     @GetMapping("/users/{userAggregateId}")
     public UserDto findByUserId(@PathVariable Integer userAggregateId) {
-        UserDto result = userFunctionalities.findByUserId(userAggregateId);
-        return result;
+        return userFunctionalities.findByUserId(userAggregateId);
     }
 
     @DeleteMapping("/users/{userAggregateId}/delete")

@@ -4,40 +4,27 @@ import static pt.ulisboa.tecnico.socialsoftware.ms.TransactionalModel.SAGAS;
 import static pt.ulisboa.tecnico.socialsoftware.teastore.microservices.exception.TeastoreErrorMessage.*;
 
 import java.util.Arrays;
-import java.util.List;
-import java.util.Set;
-import java.util.ArrayList;
-import java.util.HashSet;
+
+import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.exception.TeastoreErrorMessage;
 import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.exception.TeastoreException;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.core.env.Environment;
 import org.springframework.stereotype.Service;
 import jakarta.annotation.PostConstruct;
 import pt.ulisboa.tecnico.socialsoftware.ms.TransactionalModel;
-import pt.ulisboa.tecnico.socialsoftware.ms.coordination.unitOfWork.UnitOfWork;
 import pt.ulisboa.tecnico.socialsoftware.ms.sagas.unitOfWork.SagaUnitOfWork;
 import pt.ulisboa.tecnico.socialsoftware.ms.sagas.unitOfWork.SagaUnitOfWorkService;
 import pt.ulisboa.tecnico.socialsoftware.teastore.sagas.coordination.user.*;
 import pt.ulisboa.tecnico.socialsoftware.teastore.shared.dtos.UserDto;
 import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.service.UserService;
-import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.service.UserService;
-import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.userfactory.service.UserFactory;
-import pt.ulisboa.tecnico.socialsoftware.teastore.shared.dtos.UserDto;
 
 @Service
 public class UserFunctionalities {
     @Autowired
     private UserService userService;
 
-    @Autowired
-    private UserService userService;
-
-    @Autowired
+    @Autowired(required = false)
     private SagaUnitOfWorkService sagaUnitOfWorkService;
-
-    @Autowired
-    private UserFactory userFactory;
-
 
     @Autowired
     private Environment env;
@@ -60,11 +47,14 @@ public class UserFunctionalities {
         switch (workflowType) {
             case SAGAS:
                 SagaUnitOfWork sagaUnitOfWork = sagaUnitOfWorkService.createUnitOfWork(functionalityName);
+                checkInput(userDto);
+
                 CreateUserFunctionalitySagas createUserFunctionalitySagas = new CreateUserFunctionalitySagas(
-                        userService, sagaUnitOfWorkService, sagaUnitOfWork);
+                        userService, sagaUnitOfWorkService, userDto, sagaUnitOfWork);
+
                 createUserFunctionalitySagas.executeWorkflow(sagaUnitOfWork);
-                return createUserFunctionalitySagas.getCreatedUser();
-            default: throw new AnswersException(UNDEFINED_TRANSACTIONAL_MODEL);
+                return createUserFunctionalitySagas.getCreatedUserDto();
+            default: throw new TeastoreException(UNDEFINED_TRANSACTIONAL_MODEL);
         }
     }
 
@@ -75,10 +65,10 @@ public class UserFunctionalities {
             case SAGAS:
                 SagaUnitOfWork sagaUnitOfWork = sagaUnitOfWorkService.createUnitOfWork(functionalityName);
                 FindByUserIdFunctionalitySagas findByUserIdFunctionalitySagas = new FindByUserIdFunctionalitySagas(
-                        userService, sagaUnitOfWorkService, sagaUnitOfWork);
+                        userService, sagaUnitOfWorkService, userAggregateId, sagaUnitOfWork);
                 findByUserIdFunctionalitySagas.executeWorkflow(sagaUnitOfWork);
-                return findByUserIdFunctionalitySagas.getResult();
-            default: throw new AnswersException(UNDEFINED_TRANSACTIONAL_MODEL);
+                return findByUserIdFunctionalitySagas.getUserDto();
+            default: throw new TeastoreException(UNDEFINED_TRANSACTIONAL_MODEL);
         }
     }
 
@@ -92,7 +82,19 @@ public class UserFunctionalities {
                         userService, sagaUnitOfWorkService, sagaUnitOfWork);
                 deleteUserFunctionalitySagas.executeWorkflow(sagaUnitOfWork);
                 break;
-            default: throw new AnswersException(UNDEFINED_TRANSACTIONAL_MODEL);
+            default: throw new TeastoreException(UNDEFINED_TRANSACTIONAL_MODEL);
+        }
+    }
+
+    private void checkInput(UserDto userDto) {
+        if (userDto.getUserName() == null) {
+            throw new TeastoreException(TeastoreErrorMessage.USER_MISSING_USERNAME);
+        }
+        if (userDto.getEmail() == null) {
+            throw new TeastoreException(USER_MISSING_EMAIL);
+        }
+        if (userDto.getRealName() == null) {
+            throw new TeastoreException(TeastoreErrorMessage.USER_MISSING_REALNAME);
         }
     }
 

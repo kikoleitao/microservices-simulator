@@ -9,23 +9,37 @@ import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.service.Use
 import pt.ulisboa.tecnico.socialsoftware.teastore.shared.dtos.UserDto;
 
 public class FindByUserIdFunctionalitySagas extends WorkflowFunctionality {
-    
-
+    private UserDto userDto;
     private final UserService userService;
     private final SagaUnitOfWorkService sagaUnitOfWorkService;
-    private final SagaUnitOfWork unitOfWork;
 
-    public FindByUserIdFunctionalitySagas(UserService userService, SagaUnitOfWorkService sagaUnitOfWorkService, SagaUnitOfWork unitOfWork) {
+    public FindByUserIdFunctionalitySagas(UserService userService, SagaUnitOfWorkService sagaUnitOfWorkService,
+                                          Integer userAggregateId, SagaUnitOfWork unitOfWork){
         this.userService = userService;
         this.sagaUnitOfWorkService = sagaUnitOfWorkService;
-        this.unitOfWork = unitOfWork;
-    }
 
-    public void buildWorkflow() {
-        this.workflow = new SagaWorkflow(this, this.sagaUnitOfWorkService, this.unitOfWork);
+        this.buildWorkflow(userAggregateId, unitOfWork);
 
     }
 
+    public void buildWorkflow(Integer userAggregateId, SagaUnitOfWork unitOfWork) {
+        this.workflow = new SagaWorkflow(this, sagaUnitOfWorkService, unitOfWork);
+
+        SagaSyncStep findUserStep = new SagaSyncStep("findUserStep", () -> {
+            UserDto userDto = userService.getUserById(userAggregateId, unitOfWork);
+            this.setUserDto(userDto);
+        });
+
+        workflow.addStep(findUserStep);
+    }
+
+    public UserDto getUserDto() {
+        return userDto;
+    }
+
+    public void setUserDto(UserDto userDto) {
+        this.userDto = userDto;
+    }
 }
 
 

@@ -1,6 +1,7 @@
 package pt.ulisboa.tecnico.socialsoftware.teastore.microservices.user.aggregate;
 
 import jakarta.persistence.Entity;
+import jakarta.persistence.Column;
 
 import pt.ulisboa.tecnico.socialsoftware.ms.domain.aggregate.Aggregate;
 
@@ -8,9 +9,13 @@ import pt.ulisboa.tecnico.socialsoftware.teastore.shared.dtos.UserDto;
 
 @Entity
 public abstract class User extends Aggregate {
+    @Column
     private String userName;
+    @Column
     private String password;
+    @Column
     private String realName;
+    @Column
     private String email;
 
     public User() {
