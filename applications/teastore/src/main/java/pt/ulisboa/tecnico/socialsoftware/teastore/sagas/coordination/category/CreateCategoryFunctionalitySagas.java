@@ -9,21 +9,35 @@ import pt.ulisboa.tecnico.socialsoftware.teastore.microservices.category.service
 import pt.ulisboa.tecnico.socialsoftware.teastore.shared.dtos.CategoryDto;
 
 public class CreateCategoryFunctionalitySagas extends WorkflowFunctionality {
-    
-
+    private CategoryDto createdCategoryDto;
     private final CategoryService categoryService;
     private final SagaUnitOfWorkService sagaUnitOfWorkService;
-    private final SagaUnitOfWork unitOfWork;
 
-    public CreateCategoryFunctionalitySagas(CategoryService categoryService, SagaUnitOfWorkService sagaUnitOfWorkService, SagaUnitOfWork unitOfWork) {
+    public CreateCategoryFunctionalitySagas(CategoryService categoryService, SagaUnitOfWorkService sagaUnitOfWorkService,
+                                            CategoryDto categoryDto, SagaUnitOfWork unitOfWork) {
         this.categoryService = categoryService;
         this.sagaUnitOfWorkService = sagaUnitOfWorkService;
-        this.unitOfWork = unitOfWork;
+        this.buildWorkflow(categoryDto, unitOfWork);
     }
 
-    public void buildWorkflow() {
-        this.workflow = new SagaWorkflow(this, this.sagaUnitOfWorkService, this.unitOfWork);
+    public void buildWorkflow(CategoryDto categoryDto, SagaUnitOfWork unitOfWork) {
+        this.workflow = new SagaWorkflow(this, sagaUnitOfWorkService, unitOfWork);
 
+        SagaSyncStep createCategoryStep = new SagaSyncStep("createCategoryStep", () -> {
+            CategoryDto createdCategoryDto = categoryService.createCategory(categoryDto, unitOfWork);
+            setCreatedCategoryDto(createdCategoryDto);
+        });
+
+        workflow.addStep(createCategoryStep);
+    }
+
+
+    public CategoryDto getCreatedCategoryDto() {
+        return createdCategoryDto;
+    }
+
+    public void setCreatedCategoryDto(CategoryDto createdCategoryDto) {
+        this.createdCategoryDto = createdCategoryDto;
     }
 
 }

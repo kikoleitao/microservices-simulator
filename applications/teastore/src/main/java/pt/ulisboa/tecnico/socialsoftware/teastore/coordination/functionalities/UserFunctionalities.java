@@ -23,7 +23,7 @@ public class UserFunctionalities {
     @Autowired
     private UserService userService;
 
-    @Autowired(required = false)
+    @Autowired
     private SagaUnitOfWorkService sagaUnitOfWorkService;
 
     @Autowired
